@@ -1,7 +1,6 @@
 import "dart:io";
 import "dart:async";
 import "dart:isolate";
-import "dart:convert";
 import "dart:typed_data";
 
 import "package:fbdb/fbdb.dart";
@@ -590,13 +589,15 @@ class FbDb {
   /// Sends a string as a blob's data segment to the database.
   ///
   /// The blob [id] has to correspond with a previously created
-  /// blob. The string [data] is automatically converted to UTF-8
+  /// blob. The string [data] is automatically converted to the connection
+  /// charset (see [FbOptions.connCharset])
   /// and then sent to the database to be appended to the blob.
   Future<void> putBlobSegmentStr({
     required FbBlobId id,
     required String data,
   }) async {
-    return putBlobSegment(id: id, data: utf8.encode(data).buffer);
+    // encoded by the worker isolate, which knows the connection charset
+    await _askWorker(FbDbControlOp.putBlobSegment, [id, data]);
   }
 
   /// Fills a blob with data from the provided stream.

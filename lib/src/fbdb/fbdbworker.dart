@@ -238,6 +238,7 @@ class FbDbWorker {
   Future<void> _attach(FbDbControlMessage msg) async {
     final Map<String, dynamic> params = msg.data[0];
     _options = params.containsKey("options") ? params["options"] : FbOptions();
+    fbStringEncoding = fbEncodingForCharset(_options?.connCharset ?? "UTF8");
     final dpb = _makeDPB(params);
     final db = _makeDBPath(params);
     try {
@@ -259,6 +260,7 @@ class FbDbWorker {
   Future<void> _createDatabase(FbDbControlMessage msg) async {
     final Map<String, dynamic> params = msg.data[0];
     _options = params.containsKey("options") ? params["options"] : FbOptions();
+    fbStringEncoding = fbEncodingForCharset(_options?.connCharset ?? "UTF8");
     final dpb = _makeDPB(params);
     final db = _makeDBPath(params);
     int? pageSize = _options?.pageSize;
@@ -329,7 +331,11 @@ class FbDbWorker {
   /// connection parameters (see [FbDb.attach]).
   IXpbBuilder _makeDPB(Map<String, dynamic> params) {
     final dpb = util.getXpbBuilder(status, IXpbBuilder.dpb);
-    dpb.insertString(status, FbConsts.isc_dpb_lc_ctype, "UTF8");
+    dpb.insertString(
+      status,
+      FbConsts.isc_dpb_lc_ctype,
+      _options?.connCharset ?? "UTF8",
+    );
     if (params.containsKey("user")) {
       dpb.insertString(status, FbConsts.isc_dpb_user_name, params["user"]);
     }

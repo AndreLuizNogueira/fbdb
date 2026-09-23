@@ -15,8 +15,12 @@ import "fbdbworker.dart";
 String truncTrailingSpaces(String txt, int byteLength, int encoding) {
   // encodings: 0 = NONE, 1 = ASCII, 2 = OCTETS
   // see RDB$CHARACTER_SETS system table
-  if (encoding > 2) {
-    const maxBytesPerCodePoint = 4;
+  // 3 = UNICODE_FSS (up to 3 bytes/char), 4 = UTF8 (up to 4 bytes/char).
+  // With a single-byte connection charset every byte decodes to one char,
+  // so the string is already byteLength chars long, whatever the column
+  // charset (ids > 4 only show up with connCharset NONE).
+  if (fbStringEncoding == utf8 && encoding > 2) {
+    final maxBytesPerCodePoint = encoding == 3 ? 3 : 4;
     final sl = byteLength ~/ maxBytesPerCodePoint;
     return String.fromCharCodes(txt.runes.take(sl)).padRight(sl);
     //return txt.substring(0, sl).padRight(sl);
@@ -90,7 +94,7 @@ double unscaled(int value, int scaleDigits) {
 /// For all other types a conversion error will be thrown.
 ByteBuffer asByteBuffer(dynamic data) {
   if (data is String) {
-    return utf8.encode(data).buffer;
+    return fbEncodeString(data).buffer;
   } else if (data is TypedData) {
     return data.buffer;
   } else {
@@ -617,7 +621,7 @@ void putChar(
   IMessageMetadata meta,
   int index,
 ) {
-  var encoded = utf8.encode(value);
+  var encoded = fbEncodeString(value);
   Uint8List toWrite;
   if (encoded.length < length) {
     // right-pad the UTF-8 string to the required length
