@@ -1,5 +1,4 @@
 import "dart:math";
-import "dart:convert";
 import "dart:typed_data";
 import "dart:ffi";
 
@@ -90,7 +89,7 @@ double unscaled(int value, int scaleDigits) {
 /// For all other types a conversion error will be thrown.
 ByteBuffer asByteBuffer(dynamic data) {
   if (data is String) {
-    return utf8.encode(data).buffer;
+    return fbEncodeString(data).buffer;
   } else if (data is TypedData) {
     return data.buffer;
   } else {
@@ -617,7 +616,7 @@ void putChar(
   IMessageMetadata meta,
   int index,
 ) {
-  var encoded = utf8.encode(value);
+  var encoded = fbEncodeString(value);
   Uint8List toWrite;
   if (encoded.length < length) {
     // right-pad the UTF-8 string to the required length

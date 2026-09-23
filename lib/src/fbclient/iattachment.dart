@@ -657,7 +657,7 @@ class IAttachment extends IReferenceCounted {
     int dialect = FbConsts.sqlDialectCurrent,
     int flags = 0,
   ]) {
-    final sqlUtf = sqlStmt.toNativeUtf8(allocator: mem);
+    final sqlUtf = sqlStmt.toNativeFbString();
     try {
       final res = _prepare(
         self,
@@ -685,7 +685,7 @@ class IAttachment extends IReferenceCounted {
     IMessageMetadata? outMetadata,
     Pointer<Uint8>? outBuffer,
   ]) {
-    final stmtUtf = sqlStmt.toNativeUtf8(allocator: mem);
+    final stmtUtf = sqlStmt.toNativeFbString();
     try {
       final res = _execute(
         self,
@@ -717,7 +717,7 @@ class IAttachment extends IReferenceCounted {
     String? cursorName,
     int cursorFlags = 0,
   ]) {
-    final sqlUtf = sqlStmt.toNativeUtf8(allocator: mem);
+    final sqlUtf = sqlStmt.toNativeFbString();
     try {
       final nameUtf = cursorName?.toNativeUtf8(allocator: mem) ?? nullptr;
       try {
@@ -843,7 +843,7 @@ class IAttachment extends IReferenceCounted {
         "Firebird client library version 4 or later required.",
       );
     }
-    final sqlUtf = sqlStmt.toNativeUtf8(allocator: mem);
+    final sqlUtf = sqlStmt.toNativeFbString();
     try {
       final res = _createBatch(
         self,

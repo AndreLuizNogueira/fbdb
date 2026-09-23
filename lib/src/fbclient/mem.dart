@@ -458,7 +458,7 @@ extension StringMem on String {
     bool includeNullTerm = true,
     int? maxLength,
   }) {
-    final bytes = utf8.encode(this + (includeNullTerm ? "\x00" : ""));
+    final bytes = fbEncodeString(this + (includeNullTerm ? "\x00" : ""));
     maxLength ??= bytes.length;
     maxLength = min(maxLength, bytes.length);
     for (var i = 0; i < maxLength; i++) {
@@ -495,7 +495,7 @@ String readFromBufferAsString(
   List<int> codeUnits = Pointer<Uint8>.fromAddress(
     buffer.address + offset,
   ).asTypedList(byteCnt).takeWhile((value) => value != 0).toList();
-  return utf8.decode(codeUnits, allowMalformed: allowMalformed);
+  return fbDecodeString(codeUnits, allowMalformed: allowMalformed);
 }
 
 /// Extension on byte buffers, allowing to read and write
@@ -747,7 +747,7 @@ extension ReadWriteData on Pointer<Uint8> {
   /// from [offset]+2.
   void writeVarchar(int offset, String value, [int? maxLength]) {
     final lenLength = sizeOf<Uint16>();
-    final strUtf = utf8.encode(value);
+    final strUtf = fbEncodeString(value);
     maxLength ??= strUtf.length + lenLength;
     int byteCnt = min(strUtf.length, maxLength - lenLength);
     writeUint16(offset, byteCnt);
@@ -1008,5 +1008,74 @@ Memory allocated now:     ${allocated.toString().padLeft(10)} B
       "maxAllocated": maxAllocated,
       "allocated": allocated,
     };
+  }
+}
+
+/// The encoding used to convert Dart strings to / from the byte sequences
+/// exchanged with the server. Set by the worker isolate on attach,
+/// according to [FbOptions.connCharset] (each connection has its own
+/// worker isolate, so this is effectively a per-connection setting).
+Encoding fbStringEncoding = utf8;
+
+/// Maps a Firebird connection character set name to a Dart [Encoding].
+///
+/// Throws [ArgumentError] for unsupported character sets.
+Encoding fbEncodingForCharset(String charset) {
+  switch (charset.toUpperCase()) {
+    case "UTF8":
+    case "UTF-8":
+    case "UNICODE_FSS":
+      return utf8;
+    case "ISO8859_1":
+    case "LATIN1":
+    case "NONE":
+      return latin1;
+    case "ASCII":
+      return ascii;
+    default:
+      throw ArgumentError.value(
+        charset,
+        "charset",
+        "Unsupported connection charset",
+      );
+  }
+}
+
+/// Encodes [value] with [fbStringEncoding].
+///
+/// For single-byte encodings, characters outside the encoding's range
+/// are replaced with `?` instead of throwing.
+Uint8List fbEncodeString(String value) {
+  if (fbStringEncoding == utf8) {
+    return utf8.encode(value);
+  }
+  final maxCode = fbStringEncoding == ascii ? 0x7F : 0xFF;
+  return Uint8List.fromList([
+    for (final c in value.codeUnits) c > maxCode ? 0x3F : c,
+  ]);
+}
+
+/// Decodes [bytes] with [fbStringEncoding].
+String fbDecodeString(List<int> bytes, {bool allowMalformed = true}) {
+  if (fbStringEncoding == utf8) {
+    return utf8.decode(bytes, allowMalformed: allowMalformed);
+  }
+  if (fbStringEncoding == ascii) {
+    return ascii.decode(bytes, allowInvalid: allowMalformed);
+  }
+  return fbStringEncoding.decode(bytes);
+}
+
+/// Converts a Dart string to a zero-terminated native string, encoded
+/// with [fbStringEncoding] (connection-charset aware `toNativeUtf8`).
+/// The returned pointer must be released with `mem.free`.
+extension FbNativeString on String {
+  Pointer<Utf8> toNativeFbString() {
+    final bytes = fbEncodeString(this);
+    final ptr = mem.allocate<Uint8>(bytes.length + 1);
+    ptr.asTypedList(bytes.length + 1)
+      ..setAll(0, bytes)
+      ..[bytes.length] = 0;
+    return ptr.cast<Utf8>();
   }
 }

@@ -55,6 +55,16 @@ class FbOptions {
   /// on Windows, libfbclient.so on linux and libfbclient.dylib on MacOS.
   String? libFbClient;
 
+  /// The character set of the connection (`isc_dpb_lc_ctype`).
+  ///
+  /// Determines how strings (SQL statements, parameters and fetched
+  /// values) are encoded / decoded when talking to the server.
+  /// Supported values: `UTF8` (default), `UNICODE_FSS`, `ISO8859_1`,
+  /// `LATIN1`, `NONE` (bytes passed as ISO8859_1) and `ASCII`.
+  /// When using a single-byte charset, characters that cannot be
+  /// represented are replaced with `?`.
+  String connCharset;
+
   /// Default transaction flags.
   ///
   /// These flags will be used in each call to [FbDb.startTransaction],
@@ -76,6 +86,7 @@ class FbOptions {
     this.dbCharset = "UTF8",
     this.dbCollation,
     this.libFbClient,
+    this.connCharset = "UTF8",
   });
 
   /// Checks if the current transaction flags are the same as default ones.
