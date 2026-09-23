@@ -1,4 +1,5 @@
 import "dart:math";
+import "dart:convert";
 import "dart:typed_data";
 import "dart:ffi";
 
@@ -14,8 +15,12 @@ import "fbdbworker.dart";
 String truncTrailingSpaces(String txt, int byteLength, int encoding) {
   // encodings: 0 = NONE, 1 = ASCII, 2 = OCTETS
   // see RDB$CHARACTER_SETS system table
-  if (encoding > 2) {
-    const maxBytesPerCodePoint = 4;
+  // 3 = UNICODE_FSS (up to 3 bytes/char), 4 = UTF8 (up to 4 bytes/char).
+  // With a single-byte connection charset every byte decodes to one char,
+  // so the string is already byteLength chars long, whatever the column
+  // charset (ids > 4 only show up with connCharset NONE).
+  if (fbStringEncoding == utf8 && encoding > 2) {
+    final maxBytesPerCodePoint = encoding == 3 ? 3 : 4;
     final sl = byteLength ~/ maxBytesPerCodePoint;
     return String.fromCharCodes(txt.runes.take(sl)).padRight(sl);
     //return txt.substring(0, sl).padRight(sl);
